@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,16 +88,30 @@ func main() {
 				}
 			}
 		}
+
+		var bestScore = float64(-1)
+		var bestMatch = float64(-1)
+		var bestParent = "?"
+
 		for k, v := range myRels {
 			var count = len(nodeLayers[k])
-			if v == count {
-				var parentNode = nodeIds[k]
-				childEdge := dot.NewEdge(parentNode, firstNode)
-				g.AddEdge(childEdge)
-				break
+			var match = float64(v) / float64(count)
+			var score = float64(v) + match
+			if math.Max(bestScore, score) == score {
+				bestScore = score
+				bestMatch = match
+				bestParent = k
 			}
-			// fmt.Println(" - ", k, v, count)
 		}
+
+		var distantNode = nodeIds[bestParent]
+		distantEdge := dot.NewEdge(firstNode, distantNode)
+		if bestMatch < float64(1) {
+			distantEdge.Set("style", "dashed")
+			var text = fmt.Sprintf("%.0f", bestMatch*100)
+			distantEdge.Set("label", text+" %")
+		}
+		g.AddEdge(distantEdge)
 	}
 
 	fmt.Println()
