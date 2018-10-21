@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/dustin/go-humanize"
 	"golang.org/x/net/context"
 )
 
@@ -25,7 +26,8 @@ func main() {
 	}
 
 	for _, image := range images {
-		fmt.Println(image.ID)
-		fmt.Println(image.RepoTags)
+		var id = image.ID[7:19]
+		var size = humanize.Bytes(uint64(image.Size))
+		fmt.Println(id, image.RepoTags, size)
 	}
 }
