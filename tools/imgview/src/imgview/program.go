@@ -39,19 +39,64 @@ func main() {
 	hostNode.Set("label", "<<B>"+simpleHost+"</B>>")
 	g.AddNode(hostNode)
 
+	rels := make(map[string][]string)
+	nodeIds := make(map[string]*dot.Node)
+	nodeLayers := make(map[string][]string)
+
 	for i, image := range images {
 		var id = image.ID[7:19]
 		var size = humanize.Bytes(uint64(image.Size))
 		var tag = image.RepoTags[0]
 		fmt.Println(id, tag, size)
 
-		var imgNode = dot.NewNode("image" + fmt.Sprintf("%d", i))
+		var info, _, _ = cli.ImageInspectWithRaw(context.Background(), image.ID)
+		var layers = info.RootFS.Layers
+		for _, layer := range layers {
+			if v, found := rels[layer]; found {
+				rels[layer] = append(v, image.ID)
+			} else {
+				rels[layer] = []string{image.ID}
+			}
+		}
+		nodeLayers[image.ID] = layers
+
+		var imgID = "image" + fmt.Sprintf("%d", i)
+		var imgNode = dot.NewNode(imgID)
 		imgNode.Set("shape", "ellipsis")
 		imgNode.Set("label", strings.Replace(tag, ":", " #", -1))
 		g.AddNode(imgNode)
+		nodeIds[image.ID] = imgNode
 
-		imgEdge := dot.NewEdge(hostNode, imgNode)
-		g.AddEdge(imgEdge)
+		// imgEdge := dot.NewEdge(hostNode, imgNode)
+		// g.AddEdge(imgEdge)
+	}
+
+	for id, layers := range nodeLayers {
+		var myRels = make(map[string]int)
+		var firstNode = nodeIds[id]
+		for _, layer := range layers {
+			var others = rels[layer]
+			for _, other := range others {
+				if other == id {
+					continue
+				}
+				if v, found := myRels[other]; found {
+					myRels[other] = v + 1
+				} else {
+					myRels[other] = 1
+				}
+			}
+		}
+		for k, v := range myRels {
+			var count = len(nodeLayers[k])
+			if v == count {
+				var parentNode = nodeIds[k]
+				childEdge := dot.NewEdge(parentNode, firstNode)
+				g.AddEdge(childEdge)
+				break
+			}
+			// fmt.Println(" - ", k, v, count)
+		}
 	}
 
 	fmt.Println()
