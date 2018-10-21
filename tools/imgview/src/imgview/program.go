@@ -3,10 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/dustin/go-humanize"
+	"github.com/tmc/dot"
+	"github.com/windler/dotgraph/renderer"
 	"golang.org/x/net/context"
 )
 
@@ -25,9 +29,33 @@ func main() {
 		panic(err)
 	}
 
-	for _, image := range images {
+	fmt.Println()
+	var g = dot.NewGraph("DockerImages")
+	g.SetType(dot.DIGRAPH)
+
+	hostNode := dot.NewNode("host")
+	hostNode.Set("shape", "box")
+	var simpleHost = strings.Split(strings.Split(host, "//")[1], ":")[0]
+	hostNode.Set("label", "<<B>"+simpleHost+"</B>>")
+	g.AddNode(hostNode)
+
+	for i, image := range images {
 		var id = image.ID[7:19]
 		var size = humanize.Bytes(uint64(image.Size))
-		fmt.Println(id, image.RepoTags, size)
+		var tag = image.RepoTags[0]
+		fmt.Println(id, tag, size)
+
+		var imgNode = dot.NewNode("image" + fmt.Sprintf("%d", i))
+		imgNode.Set("shape", "ellipsis")
+		imgNode.Set("label", strings.Replace(tag, ":", " #", -1))
+		g.AddNode(imgNode)
+
+		imgEdge := dot.NewEdge(hostNode, imgNode)
+		g.AddEdge(imgEdge)
 	}
+
+	fmt.Println()
+	var text = fmt.Sprint(g)
+	r := &renderer.PNGRenderer{OutputFile: filepath.Join(pwd, "report.png")}
+	r.Render(text)
 }
