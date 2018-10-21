@@ -43,6 +43,8 @@ func main() {
 	rels := make(map[string][]string)
 	nodeIds := make(map[string]*dot.Node)
 	nodeLayers := make(map[string][]string)
+	nodeSizes := make(map[string]int64)
+	lostNodes := make(map[string]bool)
 
 	for i, image := range images {
 		var id = image.ID[7:19]
@@ -60,6 +62,8 @@ func main() {
 			}
 		}
 		nodeLayers[image.ID] = layers
+		nodeSizes[image.ID] = image.Size
+		lostNodes[image.ID] = true
 
 		var imgID = "image" + fmt.Sprintf("%d", i)
 		var imgNode = dot.NewNode(imgID)
@@ -67,14 +71,12 @@ func main() {
 		imgNode.Set("label", strings.Replace(tag, ":", " #", -1))
 		g.AddNode(imgNode)
 		nodeIds[image.ID] = imgNode
-
-		// imgEdge := dot.NewEdge(hostNode, imgNode)
-		// g.AddEdge(imgEdge)
 	}
 
 	for id, layers := range nodeLayers {
 		var myRels = make(map[string]int)
 		var firstNode = nodeIds[id]
+		var firstSize = nodeSizes[id]
 		for _, layer := range layers {
 			var others = rels[layer]
 			for _, other := range others {
@@ -94,6 +96,10 @@ func main() {
 		var bestParent = "?"
 
 		for k, v := range myRels {
+			var fatherSize = nodeSizes[k]
+			if fatherSize > firstSize {
+				continue
+			}
 			var count = len(nodeLayers[k])
 			var match = float64(v) / float64(count)
 			var score = float64(v) + match
@@ -104,14 +110,25 @@ func main() {
 			}
 		}
 
+		if len(bestParent) <= 1 {
+			continue
+		}
+
 		var distantNode = nodeIds[bestParent]
-		distantEdge := dot.NewEdge(firstNode, distantNode)
+		distantEdge := dot.NewEdge(distantNode, firstNode)
 		if bestMatch < float64(1) {
 			distantEdge.Set("style", "dashed")
 			var text = fmt.Sprintf("%.0f", bestMatch*100)
 			distantEdge.Set("label", text+" %")
 		}
 		g.AddEdge(distantEdge)
+		delete(lostNodes, id)
+	}
+
+	for lostNodeID := range lostNodes {
+		var lostNode = nodeIds[lostNodeID]
+		imgEdge := dot.NewEdge(hostNode, lostNode)
+		g.AddEdge(imgEdge)
 	}
 
 	fmt.Println()
