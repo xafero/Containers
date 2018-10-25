@@ -20,11 +20,24 @@ func main() {
 	fmt.Println("Current root :=", pwd)
 
 	args := os.Args[1:]
-	var host = args[0]
+	var host string
+	var remote bool
+	if len(args) == 0 {
+		host, _ = os.Hostname()
+		remote = false
+	} else {
+		host = args[0]
+		remote = true
+	}
 	const version = "v1.30"
 	fmt.Println("Connecting to ", host, " with ", version, "...")
 
-	cli, _ := client.NewClientWithOpts(client.WithHost(host), client.WithVersion(version))
+	var cli *client.Client
+	if remote {
+		cli, _ = client.NewClientWithOpts(client.WithHost(host), client.WithVersion(version))
+	} else {
+		cli, _ = client.NewClientWithOpts(client.WithVersion(version))
+	}
 	images, err := cli.ImageList(context.Background(), types.ImageListOptions{})
 	if err != nil {
 		panic(err)
@@ -36,7 +49,12 @@ func main() {
 
 	hostNode := dot.NewNode("host")
 	hostNode.Set("shape", "box")
-	var simpleHost = strings.Split(strings.Split(host, "//")[1], ":")[0]
+	var simpleHost string
+	if remote {
+		simpleHost = strings.Split(strings.Split(host, "//")[1], ":")[0]
+	} else {
+		simpleHost = host
+	}
 	hostNode.Set("label", "<<B>"+simpleHost+"</B>>")
 	g.AddNode(hostNode)
 
