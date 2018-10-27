@@ -104,9 +104,9 @@ func main() {
 					isWin = strings.Contains(tag, "windows")
 				}
 			}
-			var existsStr = "[/]"
+			var existsStr = "( )"
 			if already {
-				existsStr = "[ ]"
+				existsStr = "(!)"
 			}
 			var linuxStr = "[     ]"
 			if isLinux {
