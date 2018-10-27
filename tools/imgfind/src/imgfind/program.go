@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -31,11 +32,12 @@ func main() {
 	args := os.Args[1:]
 	var host string
 	var remote bool
-	if len(args) == 0 {
+	var searchTerm = args[0]
+	if len(args) == 1 {
 		host, _ = os.Hostname()
 		remote = false
 	} else {
-		host = args[0]
+		host = args[1]
 		remote = true
 	}
 	const version = "v1.30"
@@ -47,25 +49,60 @@ func main() {
 	} else {
 		cli, _ = client.NewClientWithOpts(client.WithVersion(version))
 	}
-	images, err := cli.ImageSearch(context.Background(), "jenkins", types.ImageSearchOptions{Limit: 100})
+
+	fmt.Println("Searching for ", searchTerm, "...")
+	images, err := cli.ImageSearch(context.Background(), searchTerm, types.ImageSearchOptions{Limit: 100})
 	if err != nil {
 		panic(err)
 	}
+
+	var showErrors = false
+	var wg sync.WaitGroup
+	wg.Add(len(images))
 
 	for _, image := range images {
 		go func(imageName string) {
 			inspectCmd := exec.Command("./linux/skopeo", "inspect", "docker://"+imageName)
 			inspectOut, err := inspectCmd.CombinedOutput()
 			if err != nil {
-				fmt.Println(strings.TrimSpace(string(inspectOut)))
+				if showErrors {
+					fmt.Println(strings.TrimSpace(string(inspectOut)))
+				}
+				defer wg.Done()
 				return
 			}
 			res := myImageInfo{}
 			json.Unmarshal(inspectOut, &res)
-			fmt.Println(res)
+			var isLinux = strings.Contains(res.Os, "linux")
+			var isNano = false
+			var isWin = false
+			fmt.Print(" * ")
+			for _, tag := range res.RepoTags {
+				if !isNano {
+					isNano = strings.Contains(tag, "nano")
+				}
+				if !isWin {
+					isWin = strings.Contains(tag, "windows")
+				}
+			}
+			var linuxStr = "[     ]"
+			if isLinux {
+				linuxStr = "[linux]"
+			}
+			var nanoStr = "[    ]"
+			if isNano {
+				nanoStr = "[nano]"
+			}
+			var winStr = "[       ]"
+			if isWin {
+				winStr = "[windows]"
+			}
+			fmt.Print(" " + linuxStr + " " + nanoStr + " " + winStr + " ")
+			fmt.Println("'" + res.Name + "'")
+			defer wg.Done()
 		}(image.Name)
 	}
 
-	fmt.Scanln()
+	wg.Wait()
 	fmt.Println("Done.")
 }
