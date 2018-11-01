@@ -70,6 +70,11 @@ func main() {
 		var tag = image.RepoTags[0]
 		fmt.Println(id, tag, size)
 
+		if strings.Contains(tag, "<none>:") {
+			fmt.Println(" --> ignored!")
+			continue
+		}
+
 		var info, _, _ = cli.ImageInspectWithRaw(context.Background(), image.ID)
 		var layers = info.RootFS.Layers
 		for _, layer := range layers {
