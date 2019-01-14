@@ -1,0 +1,6 @@
+
+1. add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1'
+
+2. set command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local
+    sudo chmod 755 /etc/init.d/disable-transparent-hugepages
+    sudo update-rc.d disable-transparent-hugepages defaults
