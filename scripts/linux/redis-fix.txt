@@ -4,3 +4,6 @@
 2. set command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local
     sudo chmod 755 /etc/init.d/disable-transparent-hugepages
     sudo update-rc.d disable-transparent-hugepages defaults
+
+3. add 'net.core.somaxconn = 511' to /etc/sysctl.conf and then reboot or run the command 'sysctl net.core.somaxconn=511'
+
